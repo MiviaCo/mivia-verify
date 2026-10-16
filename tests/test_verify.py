@@ -171,3 +171,39 @@ def test_alignment_score_identical_and_unrelated():
     b = [int.from_bytes(os.urandom(4), "little") for _ in range(200)]
     assert alignment_score(a, a) == 0
     assert alignment_score(a, b) > 0.35
+
+
+def test_a_key_revoked_after_the_pack_is_caught():
+    revoked = Keys(KEYS.platform, KEYS.statement, KEYS.platform, [(KEYS.platform, "revoked")])
+    r = results(verify_pack(zipped(seal(files())), published=revoked))
+    assert r["signature"] is False
+
+
+def test_a_retired_key_still_verifies():
+    retired = Keys(KEYS.platform, KEYS.statement, KEYS.platform, [(KEYS.platform, "retired")])
+    v = verify_pack(zipped(seal(files())), published=retired)
+    sig = next(c for c in v.checks if c.id == "signature")
+    assert sig.ok is True and "retired" in sig.detail
+
+
+def test_rotation_aware_keys_file_with_a_new_signing_key():
+    import base64
+    new = SigningKey(bytes([5]) * 32)
+    m = MANIFEST
+    f = files()
+    f["1-registration/manifest.sig"] = new.sign(m).signature
+    f["3-keys/mivia-keys.json"] = json.dumps({
+        "keys": {
+            "platform": {"public_key_b64": base64.b64encode(bytes(new.verify_key)).decode()},
+            "statement": {"public_key_b64": base64.b64encode(KEYS.statement).decode()},
+            "watermark": {"public_key_b64": base64.b64encode(KEYS.platform).decode()},
+        },
+        "signing_keys": [
+            {"public_key_b64": base64.b64encode(KEYS.platform).decode(), "status": "retired"},
+            {"public_key_b64": base64.b64encode(bytes(new.verify_key)).decode(), "status": "active"},
+        ],
+    }).encode()
+    ref = Keys(bytes(new.verify_key), KEYS.statement, KEYS.platform,
+               [(KEYS.platform, "retired"), (bytes(new.verify_key), "active")])
+    r = results(verify_pack(zipped(seal(f)), published=ref, pinned=ref))
+    assert r["signature"] is True and r["keys"] is True and r["watermark"] is True and r["statement"] is True

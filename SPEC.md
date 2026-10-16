@@ -58,19 +58,26 @@ Used for `manifest.json` and `statement.json`: UTF-8; object keys sorted by code
 
 ## Statement
 
-Canonical JSON with at least: `type` (`"mivia-evidence-statement"`), `version` (1), `generated_utc`, `record` (`id`, `manifest_blake3`, `certificate_url`, `registered_utc`, `status`, `status_reason`, `status_changed_utc`), `assurance`, `creation`, `lineage`, `timestamp`, `scans` (date and match method only), `statement_key_b64`, and `files`: every file in the pack outside `2-statement/`, sorted by path, each with its SHA-256 hex.
+Canonical JSON with at least: `type` (`"mivia-evidence-statement"`), `version` (1), `generated_utc`, `record` (`id`, `manifest_blake3`, `certificate_url`, `registered_utc`, `status`, `status_reason`, `status_changed_utc`), `assurance`, `creation`, `lineage`, `disputes` (each report Mivia acted on: dates, reason category, outcome, public reason if revoked; no free text from either side), `timestamp`, `scans` (date and match method only), `statement_key_b64`, and `files`: every file in the pack outside `2-statement/`, sorted by path, each with its SHA-256 hex.
 
 ## Keys
 
-`3-keys/mivia-keys.json`:
+`3-keys/mivia-keys.json` (fields after `keys.statement` were added in version 1.1, for signing-key rotation; older files have only `platform` and `statement`):
 
 ```
 { "keys": {
     "platform":  { "algorithm": "Ed25519", "public_key_b64": "...", "public_key_hex": "..." },
-    "statement": { "algorithm": "Ed25519", "public_key_b64": "...", "public_key_hex": "..." } } }
+    "statement": { ... },
+    "watermark": { ... } },
+  "signing_keys": [
+    { "public_key_b64": "...", "valid_from": "<ISO>", "valid_to": "<ISO or null>", "status": "active|retired|revoked" } ] }
 ```
 
-Compare them with `https://mivia.co/.well-known/mivia-keys.json` and with `src/mivia_verify/keys.py` in this repository. The platform key signs registrations only; the statement key signs pack statements only.
+- **Watermark key:** derives every watermark; the first 4 bytes of its BLAKE3 hash are the issuer id in each watermark payload. It is never rotated (that would make existing watermarks unreadable). In older files it is the platform key.
+- **Signing keys:** sign registration manifests and can be rotated. A manifest must verify with one of them. A **retired** key still verifies records signed while it was valid; a **revoked** key does not. Statuses are taken from the reference copies (this repository and mivia.co), so a key revoked after a pack was made is still caught. `platform` is the active signing key.
+- **Statement key:** signs `2-statement/statement.json` only.
+
+Compare the keys with `https://mivia.co/.well-known/mivia-keys.json` and with `src/mivia_verify/keys.py`.
 
 ## Fingerprint comparison
 

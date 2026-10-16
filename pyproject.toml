@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mivia-verify"
-version = "1.0.0"
+version = "1.1.0"
 description = "Check a Mivia evidence pack without relying on Mivia."
 readme = "README.md"
 license = { text = "Apache-2.0" }

@@ -34,8 +34,38 @@ class Check:
 
 @dataclass
 class Keys:
+    """Mivia's public keys. Older key files carry only `platform` and
+    `statement`; since signing-key rotation, `watermark` (never rotated)
+    and `signing` (every manifest-signing key with its status) too."""
+
     platform: bytes
     statement: bytes
+    watermark: Optional[bytes] = None
+    signing: Optional[List[Tuple[bytes, str]]] = None
+
+    def filled(self) -> "Keys":
+        return Keys(
+            self.platform,
+            self.statement,
+            self.watermark or self.platform,
+            self.signing or [(self.platform, "active")],
+        )
+
+
+def parse_keys_file(data: Dict) -> Keys:
+    """Read a mivia-keys.json in either form."""
+    k = data["keys"]
+    platform = base64.b64decode(k["platform"]["public_key_b64"])
+    signing = [
+        (base64.b64decode(x["public_key_b64"]), x.get("status", "active"))
+        for x in data.get("signing_keys") or []
+    ]
+    return Keys(
+        platform,
+        base64.b64decode(k["statement"]["public_key_b64"]),
+        base64.b64decode(k["watermark"]["public_key_b64"]) if "watermark" in k else None,
+        signing or None,
+    ).filled()
 
 
 @dataclass
@@ -128,13 +158,11 @@ def verify_pack(
 
     pack_keys: Optional[Keys] = None
     try:
-        k = json.loads(files["3-keys/mivia-keys.json"])["keys"]
-        pack_keys = Keys(
-            base64.b64decode(k["platform"]["public_key_b64"]),
-            base64.b64decode(k["statement"]["public_key_b64"]),
-        )
+        pack_keys = parse_keys_file(json.loads(files["3-keys/mivia-keys.json"]))
     except (KeyError, ValueError, TypeError):
         pack_keys = None
+    published = published.filled() if published else None
+    pinned = pinned.filled() if pinned else None
 
     # 1. Record integrity.
     h = blake3.blake3(manifest).digest()
@@ -163,16 +191,27 @@ def verify_pack(
         )
     )
 
-    # 2. Mivia's signature over the record.
-    sig_ok = _verify_sig(files.get("1-registration/manifest.sig"), manifest, pack_keys and pack_keys.platform)
+    # 2. Mivia's signature, by one of its signing keys. A key's status comes
+    # from the reference copies when available, so a key revoked after the
+    # pack was made is still caught.
+    sig = files.get("1-registration/manifest.sig")
+    signer = next((k for k, _ in (pack_keys.signing if pack_keys else []) if _verify_sig(sig, manifest, k)), None)
+    status = None
+    if signer is not None:
+        status = next((st for ref in (pinned, published) if ref for k, st in ref.signing if k == signer), None)
+        status = status or next(st for k, st in pack_keys.signing if k == signer)
+    sig_ok = signer is not None and status != "revoked"
     v.checks.append(
         Check(
             "signature",
             sig_ok,
-            "Signed by Mivia" if sig_ok else "The signature does not match",
-            "Mivia's Ed25519 signature on the record is valid, so it has not been changed since it was registered."
+            "Signed by Mivia" if sig_ok else ("Signed with a revoked key" if signer else "The signature does not match"),
+            ("Mivia's Ed25519 signature on the record is valid"
+             + (" (made with an earlier signing key, since retired)" if status == "retired" else "")
+             + ", so it has not been changed since it was registered.")
             if sig_ok
-            else "The record was changed after signing, or was not signed by the key in this pack.",
+            else ("The signature was made with a key Mivia has revoked. Do not rely on this record without other evidence."
+                  if signer else "The record was changed after signing, or was not signed by a key in this pack."),
         )
     )
 
@@ -186,7 +225,11 @@ def verify_pack(
                 Check("keys", None, "Keys not compared", "No reference copy of Mivia's keys was available.")
             )
         else:
-            bad = [n for n, k in refs if (k.platform, k.statement) != (pack_keys.platform, pack_keys.statement)]
+            def matches(ref: Keys) -> bool:
+                known = {k for k, _ in ref.signing}
+                return (ref.statement == pack_keys.statement and ref.watermark == pack_keys.watermark
+                        and all(k in known for k, _ in pack_keys.signing))
+            bad = [n for n, k in refs if not matches(k)]
             names = " and ".join(n for n, _ in refs)
             v.checks.append(
                 Check(
@@ -260,7 +303,7 @@ def verify_pack(
             and _crc16(p[:18]) == int.from_bytes(p[18:20], "big")
             and p[6:14] == h[:8]
             and pack_keys is not None
-            and p[2:6] == blake3.blake3(pack_keys.platform).digest()[:4]
+            and p[2:6] == blake3.blake3(pack_keys.watermark).digest()[:4]
         )
         v.checks.append(
             Check(
