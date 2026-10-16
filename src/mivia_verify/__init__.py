@@ -3,4 +3,4 @@
 from .verify import Check, Keys, Verdict, verify_pack
 
 __all__ = ["Check", "Keys", "Verdict", "verify_pack"]
-__version__ = "1.1.0"
+__version__ = "1.2.0"

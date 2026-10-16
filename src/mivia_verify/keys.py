@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple
 
 from .verify import Keys, parse_keys_file
 
-PLATFORM_KEY_B64: Optional[str] = "1Z5ayax4CYcVDDVfmWaAaCwATMmBEH77gKVRB4kOEUc="
+PLATFORM_KEY_B64: Optional[str] = "1Z5ayax4CYcVDDVfmWaAaCwATMmBEH77gKVRB4kOEUc="  # the watermark key
 STATEMENT_KEY_B64: Optional[str] = "APm0sr6P9ctu6IkiFzq/IsFjZuG8/TJh+0zaAJfR4w0="
 
 PUBLISHED_URL = "https://mivia.co/.well-known/mivia-keys.json"
@@ -30,8 +30,11 @@ PUBLISHED_URL = "https://mivia.co/.well-known/mivia-keys.json"
 # key "revoked". Before the first rotation the platform key does both jobs.
 WATERMARK_KEY_B64: Optional[str] = PLATFORM_KEY_B64
 SIGNING_KEYS: List[Tuple[str, str]] = [  # (public key, status)
-    (PLATFORM_KEY_B64, "active"),
-] if PLATFORM_KEY_B64 else []
+    # The original key: signed every manifest until 2026-10-16 04:24:30 UTC.
+    ("1Z5ayax4CYcVDDVfmWaAaCwATMmBEH77gKVRB4kOEUc=", "retired"),
+    # First rotated signing key, active from 2026-10-16 04:24:30 UTC.
+    ("1h+uS4+O3iNe6BSpOkod/6zUQCQ44E4iJoBp+dUjsO8=", "active"),
+]
 
 
 def pinned() -> Optional[Keys]:
