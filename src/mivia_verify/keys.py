@@ -4,8 +4,10 @@ The verifier compares the keys inside a pack with this copy and with the
 one published at https://mivia.co/.well-known/mivia-keys.json. Two
 independent copies: changing one is not enough to make a forged pack pass.
 
-Filled in for each release from the production keys; None means this
-build has no pinned copy (development only).
+Production keys, published 2026-10-16. The platform key was read from
+decode.mivia.co/healthz and matches the issuer id (447fb581) in every web
+registration's watermark payload. A rotated key is added here, never
+removed, so older packs keep verifying.
 """
 
 from __future__ import annotations
@@ -17,8 +19,8 @@ from typing import Optional
 
 from .verify import Keys
 
-PLATFORM_KEY_B64: Optional[str] = None
-STATEMENT_KEY_B64: Optional[str] = None
+PLATFORM_KEY_B64: Optional[str] = "1Z5ayax4CYcVDDVfmWaAaCwATMmBEH77gKVRB4kOEUc="
+STATEMENT_KEY_B64: Optional[str] = "APm0sr6P9ctu6IkiFzq/IsFjZuG8/TJh+0zaAJfR4w0="
 
 PUBLISHED_URL = "https://mivia.co/.well-known/mivia-keys.json"
 
