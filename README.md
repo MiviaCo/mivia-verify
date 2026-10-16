@@ -11,7 +11,7 @@ Every recording registered with Mivia has a public Certificate of Registration. 
 Python 3.9 or later:
 
 ```
-pip install git+https://github.com/MiviaCo/mivia-verify
+pip install mivia-verify
 ```
 
 To compare an audio file by its acoustic fingerprint, also install Chromaprint's `fpcalc` (`brew install chromaprint`, `apt install libchromaprint-tools`, or <https://acoustid.org/chromaprint>).
