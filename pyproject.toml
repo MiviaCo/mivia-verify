@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mivia-verify"
+version = "1.0.0"
+description = "Check a Mivia evidence pack without relying on Mivia."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Mivia Software Ltd" }]
+requires-python = ">=3.9"
+dependencies = ["pynacl>=1.5", "blake3>=0.4"]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Sound/Audio",
+  "Topic :: Security :: Cryptography",
+]
+
+[project.urls]
+Homepage = "https://github.com/MiviaCo/mivia-verify"
+
+[project.scripts]
+mivia-verify = "mivia_verify.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
